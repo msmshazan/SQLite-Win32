@@ -81,26 +81,41 @@ int SelectData(const char* Statement,sqlite3* Database){
         //fprintf(stderr, "Can't prepare select statment %s (%i): %s\n", Statement, Result, sqlite3_errmsg(Database));
         
     }
-    // Now attempt to get that row out
-    sqlite3_int64 id = sqlite3_last_insert_rowid(Database);
-    sqlite3_bind_int64(select_stmt, 1, id);
-
-    // This is your standard pattern
-    while(SQLITE_ROW == (Result = sqlite3_step(select_stmt))) {
-        int col;
-        printf("Found row\n");
-        for(col=0; col<sqlite3_column_count(select_stmt); col++) {
-            // Note that by using sqlite3_column_text, sqlite will coeResulte the value into a string
-            printf("\tColumn %s(%i): '%s'\n",
-                   sqlite3_column_name(select_stmt, col), col,
-                   sqlite3_column_text(select_stmt, col));
-        }
-    }
+    // Actually do the select!
+    Result = sqlite3_step(select_stmt);
     if(SQLITE_DONE != Result) {
-        //fprintf(stderr, "select statement didn't finish with DONE (%i): %s\n", Result, sqlite3_errmsg(Database));
+        fprintf(stderr, "select statement didn't return DONE (%i): %s\n", Result, sqlite3_errmsg(Database));
     } else {
-        printf("\nSELECT successfully completed\n");
+        fprintf(stdout,"SELECT completed\n\n");
     }
+    sqlite3_finalize(select_stmt);
+
+    return Result;
+}
+
+int RetriveData(const char* Statement,sqlite3* Database){
+
+    sqlite3_stmt *retrive_stmt;
+    int Result= sqlite3_prepare_v2(Database, Statement, -1, &retrive_stmt, NULL);
+    if(SQLITE_OK != Result) {
+        //fprintf(stderr, "Can't prepare select statment %s (%i): %s\n", Statement, Result, sqlite3_errmsg(Database));
+        
+    }
+    // Actually do the select!
+    Result = sqlite3_step(retrive_stmt);
+    if(SQLITE_DONE != Result) {
+        fprintf(stderr, "select statement didn't return DONE (%i): %s\n", Result, sqlite3_errmsg(Database));
+    } else {
+        fprintf(stdout,"SELECT completed\n\n");
+        
+      
+        for(int i=0;i<sqlite3_column_count(retrive_stmt),i++){
+            
+            printf("%s.\n",sqlite3_column_text(retrive_stmt, i));
+    }
+        printf("");
+    }
+    
     sqlite3_finalize(select_stmt);
 
     return Result;
@@ -119,35 +134,13 @@ int InsertData(const char* Statement,sqlite3* Database){
         //sqlite3_close(Database);
         //
     }
-    // Now actually bind the values (1-indexed)
-    double realvalue = 3.14159;
-    Result = sqlite3_bind_double(insert_stmt, 1, realvalue);
-    if(SQLITE_OK != Result) {
-        //fprintf(stderr, "Error binding value in insert (%i): %s\n", Result, sqlite3_errmsg(Database));
-        //sqlite3_close(Database);
-        //
-    } else {
-        //printf("Successfully bound real for insert: %f\n", realvalue);
-    }
-
-    const char injectionattack[] =  "Chunkys'; DROP TABLE test;";
-    // The NULL is "Don't attempt to free() the value when it's bound", since it's on the stack here
-    Result = sqlite3_bind_text(insert_stmt, 2, injectionattack, sizeof(injectionattack), NULL);
-    if(SQLITE_OK != Result) {
-        fprintf(stderr, "Error binding value in insert (%i): %s\n", Result, sqlite3_errmsg(Database));
-        //sqlite3_close(Database);
-        //
-    } else {
-        printf("Successfully bound string for insert: '%s'\n", injectionattack);
-    }
-
-
+    
     // Actually do the insert!
     Result = sqlite3_step(insert_stmt);
     if(SQLITE_DONE != Result) {
         fprintf(stderr, "insert statement didn't return DONE (%i): %s\n", Result, sqlite3_errmsg(Database));
     } else {
-        printf("INSERT completed\n\n");
+        fprintf(stdout,"INSERT completed\n\n");
     }
 
     sqlite3_finalize(insert_stmt);
@@ -155,7 +148,7 @@ int InsertData(const char* Statement,sqlite3* Database){
     return Result;
 }
 
-void ExecuteMultipleQueries(const char* Statements,int Count,sqlite3* Database){
+void ExecuteMultipleQueries(const char* Statements,sqlite3* Database){
     
     // Prepared statment
     sqlite3_stmt *stmt = NULL;
@@ -170,7 +163,7 @@ void ExecuteMultipleQueries(const char* Statements,int Count,sqlite3* Database){
     /* Note that we check strlen because sqlite is effectively returning
        end_of_previous_stmt+1, which is a valid ptr but might be an empty string
     */
-    while(Tail != NULL && 0 < strlen(Tail)) {
+    while(Tail && strlen(Tail)) {
         // SQLite return value
         int Result;
         printf("Tail: \"%s\"\n", Tail);
